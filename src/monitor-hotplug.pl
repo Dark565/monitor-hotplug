@@ -127,14 +127,28 @@ sub parse_udevadm_line($) {
 	return undef;
 }
 
-sub exec_cmd {
+my $show_info_proc;
+
+# When $hotplug_cmd is a file
+sub sub_exec_cmd {
 	my $exec = shift;
-	say "Exec: $exec";
 	(-x $exec && -r $exec) or die "Action program is not executable. Aborted";
 
 	if (fork() == 0) {
 		exec $exec, @_;
 	}
+}
+
+# When $hotplug_cmd is -
+sub sub_print_info_stdout {
+	shift;
+
+	say STDOUT join(" ", map(/ / ? "'$_'" : $_, @_));
+
+}
+
+sub exec_cmd {
+	return $show_info_proc->(@_);
 }
 
 # Command which will be run on monitor hotplug
@@ -184,29 +198,55 @@ my $script_dir = $0 =~ /^(.*)\/.*$/ ? $1 : ".";
 $script_dir = abs_path($script_dir);
 
 sub usage {
-	say STDERR "$0 [-h][--help] [action-program]";
+	say STDERR "$0 [-h][--help] [--] [action-program]\n";
+
 	say STDERR "Arguments for the action program are aligned as in example: 'program card0 \"graphics_card\" DVI-D-1 \"monitor\" 1'.";
 	say STDERR "card, card_name, monitor, monitor_name, status (plugged/unplugged - 1/0).";
+	say STDERR "If action-program is -, then line with the above information is printed to stdout.";
+	say STDERR "If -- is specified before action-program and action_program is -, then - can indicate the program.";
 }
 
 sub parse_args {
-	if (@ARGV > 0) {
-		for ($ARGV[0]) {
-			if (/^-(h|-help)$/) { 
-				usage();
-				exit 0;
-			}
-			default {	
-				$hotplug_cmd = abs_path($_);
+	my $two_lines = 0;
+
+	EXEC_BLOCK: {
+		DEF_BLOCK: {
+			if (@ARGV > 0) {
+				for ($ARGV[0]) {
+					if (/^-(h|-help)$/) { 
+						usage();
+						exit 0;
+					}
+					elsif ($_ eq "--") {
+						defined $ARGV[1] && ($_ = $ARGV[1]) || next DEF_BLOCK;
+						$two_lines = 1;
+					}
+
+					$hotplug_cmd = $_;
+					if ($two_lines == 0 && $hotplug_cmd eq '-') {
+						$show_info_proc = \&sub_print_info_stdout;
+
+						say STDERR "Lines will be printed to stdout";
+						last EXEC_BLOCK;
+					}
+					else {
+						$hotplug_cmd = abs_path($_);
+						$show_info_proc = \&sub_exec_cmd;
+					}
+					
+					last DEF_BLOCK;
+				}
 			}
 		}
+		continue {	
+			$hotplug_cmd = "$script_dir/hotplug-action";
+		}
 	}
-	else {	
-		$hotplug_cmd = "$script_dir/hotplug-action";
-	}
+	continue {
+		(-x $hotplug_cmd && -r $hotplug_cmd) or die "Action program '$hotplug_cmd' is not executable. Aborted"; 
+		say STDERR "Hotplug action program is '$hotplug_cmd'";
 
-	(-x $hotplug_cmd && -r $hotplug_cmd) or die "Action program '$hotplug_cmd' is not executable. Aborted"; 
-	say STDERR "Hotplug action program is '$hotplug_cmd'";
+	}
 }
 
 # Main subroutine
