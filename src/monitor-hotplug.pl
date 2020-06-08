@@ -217,7 +217,7 @@ sub parse_args {
 						usage();
 						exit 0;
 					}
-					elsif ($_ eq "--") {
+					elsif ($_ eq '--') {
 						defined $ARGV[1] && ($_ = $ARGV[1]) || next DEF_BLOCK;
 						$two_lines = 1;
 					}
@@ -231,7 +231,6 @@ sub parse_args {
 					}
 					else {
 						$hotplug_cmd = abs_path($_);
-						$show_info_proc = \&sub_exec_cmd;
 					}
 					
 					last DEF_BLOCK;
@@ -243,7 +242,8 @@ sub parse_args {
 		}
 	}
 	continue {
-		(-x $hotplug_cmd && -r $hotplug_cmd) or die "Action program '$hotplug_cmd' is not executable. Aborted"; 
+		(-x $hotplug_cmd && -r $hotplug_cmd) or die "Action program '$hotplug_cmd' is not executable. Aborted";
+		$show_info_proc = \&sub_exec_cmd;
 		say STDERR "Hotplug action program is '$hotplug_cmd'";
 
 	}
