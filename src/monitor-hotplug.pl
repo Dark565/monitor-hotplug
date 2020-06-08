@@ -240,7 +240,7 @@ sub main {
 		my $chg_card = parse_udevadm_line($udevadm_line);
 		say STDERR "Detected change for $chg_card";
 
-		usleep 500000; # Sync interval; kernel faster informs about the change in monitors, than it seriously prepares its data, so we have to wait
+		usleep 500000; # Sync interval; kernel informs faster about changes in monitor connections than it seriously prepares that information to read, so we have to wait
 		detect_monitor_change($chg_card);
 		#say STDERR Dumper(\%card_data);
 	}
