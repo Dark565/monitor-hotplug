@@ -3,7 +3,7 @@
 Script for registering changes in monitor connections.
 
 ## Syntax
-`monitor-hotplug.pl [--help|-h] -- [action-program]`
+`monitor-hotplug.pl [--help|-h] [--] [action-program]`
 
 ## Behavior
 When this script detects a change in a monitor connection, it executes 'action-program' specified in the argument.  
