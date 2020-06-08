@@ -249,6 +249,15 @@ sub parse_args {
 	}
 }
 
+my $udevadm_file;
+
+sub interrupt {
+	say STDERR "Interrupted.";
+		
+	close $udevadm_file;
+	exit(0);
+}
+
 # Main subroutine
 sub main {
 	parse_args();
@@ -272,8 +281,10 @@ sub main {
 	say STDERR "Cards and monitors detected.";
 	say STDERR "Polling for changes.."; 
 
-	my $udevadm_file;
 	open $udevadm_file, "udevadm monitor -k -s drm 2>/dev/null |" or die "Cannot execute udevadm. Aborted";
+	$SIG{'TERM'} = \&interrupt;
+	$SIG{'INT'} = \&interrupt;
+
 	<$udevadm_file> for (1..3);
 
 	while (my $udevadm_line = <$udevadm_file>) {

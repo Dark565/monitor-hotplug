@@ -22,8 +22,11 @@ monitor_status=$5
 
 declare what_was_done;
 case $monitor_status in
-	'1' ) what_was_done="plugged into";;
-	'0' | * ) what_was_done="plugged out from";;
+	'1' )
+		what_was_done="plugged into";;
+
+	'0' | * )
+		what_was_done="plugged off from";;
 esac
 
 nl=$'\n'
