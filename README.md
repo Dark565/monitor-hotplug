@@ -1,6 +1,6 @@
 # monitor-hotplug
 
-Script for registering changes in monitors connection.
+Script for registering changes in monitor connections.
 
 ## Syntax
 `monitor-hotplug.pl [--help|-h] [action-program]`
