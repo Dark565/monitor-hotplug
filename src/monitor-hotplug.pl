@@ -26,6 +26,10 @@ use Time::HiRes qw(usleep);
 sub not_installed($) {
 	die shift . " is not installed in your system. Aborted";
 }
+
+$ENV{'LANG'} = 'C';
+$ENV{'LC_ALL'} = 'C';
+
 which("udevadm") 	or not_installed "udevadm";
 which("lspci") 		or not_installed "lspci";
 which("parse-edid")	or not_installed "parse-edid"; 
@@ -129,12 +133,31 @@ sub parse_udevadm_line($) {
 
 my $show_info_proc;
 
+# To avoid zombies
+# Double forked process is no more waitable for the parent,
+# so 0 is returned in the child context and 1 in the parent context.
+sub double_fork() {
+	my $cpid;
+	if (($cpid = fork()) == 0) {
+		if (fork() == 0) {
+			return 0;
+		}
+		else {
+			exit(0);
+		}
+	}
+	else {
+		waitpid $cpid, 0;
+		return 1;
+	}
+}
+
 # When $hotplug_cmd is a file
 sub sub_exec_cmd {
 	my $exec = shift;
 	(-x $exec && -r $exec) or die "Action program is not executable. Aborted";
 
-	if (fork() == 0) {
+	if (double_fork() == 0) {
 		exec $exec, @_;
 	}
 }
@@ -250,10 +273,13 @@ sub parse_args {
 }
 
 my $udevadm_file;
+my $udevadm_pid;
 
 sub interrupt {
 	say STDERR "Interrupted.";
-		
+
+	say $udevadm_pid;
+	kill 'SIGTERM', $udevadm_pid;
 	close $udevadm_file;
 	exit(0);
 }
@@ -281,7 +307,7 @@ sub main {
 	say STDERR "Cards and monitors detected.";
 	say STDERR "Polling for changes.."; 
 
-	open $udevadm_file, "udevadm monitor -k -s drm 2>/dev/null |" or die "Cannot execute udevadm. Aborted";
+	$udevadm_pid = open $udevadm_file, "udevadm monitor -k -s drm 2>/dev/null |" or die "Cannot execute udevadm. Aborted";
 	$SIG{'TERM'} = \&interrupt;
 	$SIG{'INT'} = \&interrupt;
 
