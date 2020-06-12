@@ -133,7 +133,7 @@ sub parse_udevadm_line($) {
 
 my $show_info_proc;
 
-# To avoid zombies
+# To avoid zombies or go daemon
 # Double forked process is no more waitable for the parent,
 # so 0 is returned in the child context and 1 in the parent context.
 sub double_fork() {
@@ -155,7 +155,7 @@ sub double_fork() {
 # When $hotplug_cmd is a file
 sub sub_exec_cmd {
 	my $exec = shift;
-	(-x $exec && -r $exec) or die "Action program is not executable. Aborted";
+	(-x $exec && -r $exec) or die "Event program is not executable. Aborted";
 
 	if (double_fork() == 0) {
 		exec $exec, @_;
@@ -221,14 +221,21 @@ my $script_dir = $0 =~ /^(.*)\/.*$/ ? $1 : ".";
 $script_dir = abs_path($script_dir);
 
 sub usage {
-	say STDERR "$0 [-h][--help] [--] [action-program]\n";
+	say STDERR "Scan for changes in monitor connections.";
+	say STDERR "Usage: $0 [-hd][--help,--daemon] [--] [event-program]\n";
 
-	say STDERR "Arguments for the action program are aligned as in example: 'program card0 \"graphics_card\" DVI-D-1 \"monitor\" 1'.";
+	say STDERR "Arguments for the event program are aligned as in example: 'program card0 \"graphics_card\" DVI-D-1 \"monitor\" 1'.";
 	say STDERR "card, card_name, monitor, monitor_name, status (plugged/unplugged - 1/0).";
-	say STDERR "If action-program is -, then line with the above information is printed to stdout.";
-	say STDERR "If -- is specified before action-program and action_program is -, then - can indicate the program.";
+	say STDERR "If action-program is -, then line with the above information is printed to stdout.\n";
+	say STDERR "Default event program is 'monitor-hotplug-event'";
+	
+	say STDERR "Options:";
+	say STDERR " --		'event-program' can be named like the program's options and -,";
+	say STDERR " -h,--help	Show this help,";
+	say STDERR " -d,--daemon	Start this program as a daemon.";
 }
 
+my $run_as_daemon = 0;
 sub parse_args {
 	my $two_lines = 0;
 
@@ -239,6 +246,11 @@ sub parse_args {
 					if (/^-(h|-help)$/) { 
 						usage();
 						exit 0;
+					}
+					elsif (/^-(d|-daemon)$/) {
+						$run_as_daemon = 1;
+						shift @ARGV;
+						redo DEF_BLOCK;
 					}
 					elsif ($_ eq '--') {
 						defined $ARGV[1] && ($_ = $ARGV[1]) || next DEF_BLOCK;
@@ -261,13 +273,13 @@ sub parse_args {
 			}
 		}
 		continue {	
-			$hotplug_cmd = "$script_dir/hotplug-action";
+			$hotplug_cmd = "$script_dir/monitor-hotplug-event";
 		}
 	}
 	continue {
-		(-x $hotplug_cmd && -r $hotplug_cmd) or die "Action program '$hotplug_cmd' is not executable. Aborted";
+		(-x $hotplug_cmd && -r $hotplug_cmd) or die "Event program '$hotplug_cmd' is not executable. Aborted";
 		$show_info_proc = \&sub_exec_cmd;
-		say STDERR "Hotplug action program is '$hotplug_cmd'";
+		say STDERR "Hotplug event program is '$hotplug_cmd'";
 
 	}
 }
@@ -278,7 +290,6 @@ my $udevadm_pid;
 sub interrupt {
 	say STDERR "Interrupted.";
 
-	say $udevadm_pid;
 	kill 'SIGTERM', $udevadm_pid;
 	close $udevadm_file;
 	exit(0);
@@ -287,6 +298,10 @@ sub interrupt {
 # Main subroutine
 sub main {
 	parse_args();
+	if ($run_as_daemon) {
+		exit(0) if (double_fork());
+		say STDERR "Started as a daemon. PID: $$";
+	}
 
 	( -r $sysdir && -x $sysdir ) or die "'$sysdir' is not readable";
 

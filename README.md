@@ -3,19 +3,20 @@
 Script for registering changes in monitor connections.
 
 ## Syntax
-`monitor-hotplug.pl [--help|-h] [--] [action-program]`
+`monitor-hotplug [-hd][--help,--daemon] [--] [event-program]`
 
 ## Behavior
-When this script detects a change in a monitor connection, it executes 'action-program' specified in the argument.  
-If action-program wasn't specified, the script defaults to "hotplug-action".  
-Program is called as in example:  
-`action-program card0 "Intel HD 610" card0-HDMI-A-1 "Asus" 1`.
+This program detects changes in monitor connections.  
+Those changes are monitor plugin/plugout events.  
+When one of them will be detected, the program will execute another program specified in 'event-program' which will handle the event.  
+If event-program wasn't specified, the monitor-hotplug defaults to "monitor-hotplug-event".  
+Handling program is called with arguments passed as shown below (in order from top to bottom):
 
-- card0 - DRM card name
-- "Intel HD 610" - Real name of that card
-- card0-HDMI-A-1 - DRM monitor name
-- "Asus" - Real name of that monitor
-- 1 - Monitor status (1 - just plugged, 0 - just unplugged)
+- DRM card name
+- Real name of that card
+- DRM monitor name
+- Real name of that monitor
+- Monitor status (1 - just plugged, 0 - just unplugged)
 
 ## Requirements
 - udevadm
